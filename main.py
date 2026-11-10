@@ -3,7 +3,11 @@
 import logging
 import sys
 from enum import IntEnum
+from pathlib import Path
 
+import numpy as np
+
+from analyzer import AnalyzerError, SpectralAnalyzer
 from audio_engine import AudioEngine, AudioEngineError
 from cli import parse_args
 from logger import setup_logging
@@ -19,6 +23,31 @@ class ExitCode(IntEnum):
     INTERRUPTED = 130
 
 
+def build_plots(
+        plotter: Plotter,
+        analyzer: SpectralAnalyzer,
+        audio_data: np.ndarray,
+        sample_rate: int,
+        name: str,
+) -> dict[str, Path | None]:
+    """Build waveform, spectrum and spectrogram plots for a single signal.
+
+    Returns:
+        dict: Mapping of plot kind to the saved image path (None if plotting disabled).
+    """
+    if not plotter.config.enabled:
+        return {}
+
+    spectrum = analyzer.compute_spectrum(audio_data, sample_rate)
+    spectrogram = analyzer.compute_spectrogram(audio_data, sample_rate)
+
+    return {
+        "waveform": plotter.plot_signal(audio_data, sample_rate, name),
+        "spectrum": plotter.plot_spectrum(spectrum, name),
+        "spectrogram": plotter.plot_spectrogram(spectrogram, name),
+    }
+
+
 def main() -> int:
     """Run the audio recorder application pipeline.
 
@@ -32,6 +61,7 @@ def main() -> int:
         app_config = parse_args()
         engine = AudioEngine(app_config.audio)
         plotter = Plotter(app_config.plot)
+        analyzer = SpectralAnalyzer(app_config.spectral)
 
         processor = AudioProcessor(app_config.processing.threshold)
         suffix = app_config.processing.suffix
@@ -49,15 +79,20 @@ def main() -> int:
         )
 
         # 3. Графіки обох сигналів
-        plot_original = plotter.plot_signal(audio_data, fs, name)
-        plot_processed = plotter.plot_signal(processed_data, fs, f"{name}{suffix}")
+        plots_original = build_plots(plotter, analyzer, audio_data, fs, name)
+        plots_processed = build_plots(
+            plotter, analyzer, processed_data, fs, f"{name}{suffix}"
+        )
 
         logger.info("Original audio saved to: %s", saved_original)
         logger.info("Processed audio saved to: %s", saved_processed)
-        if plot_original:
-            logger.info("Original plot saved to: %s", plot_original)
-        if plot_processed:
-            logger.info("Processed plot saved to: %s", plot_processed)
+        for kind, path in plots_original.items():
+            if path:
+                logger.info("Original %s plot saved to: %s", kind, path)
+        for kind, path in plots_processed.items():
+            if path:
+                logger.info("Processed %s plot saved to: %s", kind, path)
+        plotter.show()
         return ExitCode.SUCCESS
 
     except KeyboardInterrupt:
