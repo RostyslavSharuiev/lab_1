@@ -2,8 +2,7 @@
 
 import argparse
 from pathlib import Path
-from config import AppConfig, AudioConfig, PlotConfig
-
+from config import AppConfig, AudioConfig, PlotConfig, ProcessingConfig, SpectralConfig
 
 def parse_args(args: None | list[str] = None) -> AppConfig:
     """Parse command line arguments and return a validated AppConfig instance.
@@ -16,6 +15,8 @@ def parse_args(args: None | list[str] = None) -> AppConfig:
     """
     default_audio = AudioConfig()
     default_plot = PlotConfig()
+    default_processing = ProcessingConfig()
+    default_spectral = SpectralConfig()
 
     parser = argparse.ArgumentParser(
         prog="audio-recorder",
@@ -90,6 +91,47 @@ def parse_args(args: None | list[str] = None) -> AppConfig:
         help="Disable interactive GUI window display of the plot",
     )
 
+    # Processing options
+    proc_group = parser.add_argument_group("Processing Settings")
+    proc_group.add_argument(
+        "-t",
+        "--threshold",
+        type=float,
+        default=default_processing.threshold,
+        help="Amplitude threshold (0-1) for trimming silence",
+    )
+
+    # Spectral analysis options
+    spec_group = parser.add_argument_group("Spectral Analysis Settings")
+    spec_group.add_argument(
+        "-w",
+        "--window-size",
+        type=int,
+        default=default_spectral.nperseg,
+        dest="nperseg",
+        help="Spectrogram window length in samples",
+    )
+    spec_group.add_argument(
+        "--overlap",
+        type=float,
+        default=default_spectral.overlap,
+        help="Spectrogram window overlap fraction in [0, 1)",
+    )
+    spec_group.add_argument(
+        "--max-freq",
+        type=float,
+        default=default_spectral.max_freq,
+        dest="max_freq",
+        help="Upper frequency limit of spectral plots in Hz (default: Nyquist)",
+    )
+    spec_group.add_argument(
+        "--dynamic-range",
+        type=float,
+        default=default_spectral.dynamic_range_db,
+        dest="dynamic_range_db",
+        help="Displayed dynamic range below the peak in dB",
+    )
+
     parsed = parser.parse_args(args)
 
     audio_config = AudioConfig(
@@ -106,4 +148,13 @@ def parse_args(args: None | list[str] = None) -> AppConfig:
         show=parsed.plot_show,
     )
 
-    return AppConfig(audio=audio_config, plot=plot_config)
+    processing_config = ProcessingConfig(threshold=parsed.threshold)
+
+    spectral_config = SpectralConfig(
+        nperseg=parsed.nperseg,
+        overlap=parsed.overlap,
+        dynamic_range_db=parsed.dynamic_range_db,
+        max_freq=parsed.max_freq,
+    )
+
+    return AppConfig(audio=audio_config, plot=plot_config, processing=processing_config, spectral=spectral_config,)
