@@ -1,4 +1,4 @@
-"""Configuration models for Audio Engine and Plotter visualization."""
+"""Configuration models for Audio Engine, Signal Processor, and Plotter visualization."""
 
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -45,6 +45,26 @@ class AudioConfig:
         """Return the fully resolved file path for the recorded audio."""
         return self.output_dir / f"{self.output_filename}.{self.output_extension}"
 
+    def get_suffixed_path(self, suffix: str) -> Path:
+        """Return file path with an appended suffix (e.g., '_original', '_processed')."""
+        return self.output_dir / f"{self.output_filename}_{suffix}.{self.output_extension}"
+
+
+@dataclass(frozen=True)
+class ProcessingConfig:
+    """Configuration settings for threshold-based signal processing.
+
+    Attributes:
+        threshold: Amplitude threshold for trimming leading and trailing silence.
+    """
+
+    threshold: float = 0.01
+
+    def __post_init__(self) -> None:
+        """Validate processing configuration parameters."""
+        if self.threshold < 0:
+            raise ValueError(f"Threshold must be non-negative, got {self.threshold}")
+
 
 @dataclass(frozen=True)
 class PlotConfig:
@@ -74,3 +94,4 @@ class AppConfig:
 
     audio: AudioConfig
     plot: PlotConfig
+    processing: ProcessingConfig = field(default_factory=ProcessingConfig)

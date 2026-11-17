@@ -2,7 +2,7 @@
 
 import argparse
 from pathlib import Path
-from config import AppConfig, AudioConfig, PlotConfig
+from config import AppConfig, AudioConfig, PlotConfig, ProcessingConfig
 
 
 def parse_args(args: None | list[str] = None) -> AppConfig:
@@ -12,14 +12,15 @@ def parse_args(args: None | list[str] = None) -> AppConfig:
         args: Optional list of command-line argument strings (useful for testing).
 
     Returns:
-        AppConfig: Aggregate configuration object containing AudioConfig and PlotConfig.
+        AppConfig: Aggregate configuration object containing domain configs.
     """
     default_audio = AudioConfig()
     default_plot = PlotConfig()
+    default_processing = ProcessingConfig()
 
     parser = argparse.ArgumentParser(
         prog="audio-recorder",
-        description="Cross-platform command line utility to record audio from microphone.",
+        description="Cross-platform command line utility to record and process audio.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
 
@@ -65,6 +66,17 @@ def parse_args(args: None | list[str] = None) -> AppConfig:
         help="Output directory path for audio recordings",
     )
 
+    # Signal processing options
+    proc_group = parser.add_argument_group("Signal Processing Settings")
+    proc_group.add_argument(
+        "-th",
+        "--threshold",
+        type=float,
+        default=default_processing.threshold,
+        dest="threshold",
+        help="Amplitude threshold for trimming silence at start and end",
+    )
+
     # Plotting options
     plot_group = parser.add_argument_group("Visualization Settings")
     plot_group.add_argument(
@@ -100,10 +112,18 @@ def parse_args(args: None | list[str] = None) -> AppConfig:
         output_dir=parsed.output_dir,
     )
 
+    processing_config = ProcessingConfig(
+        threshold=parsed.threshold,
+    )
+
     plot_config = PlotConfig(
         figures_dir=parsed.figures_dir,
         enabled=parsed.plot_enabled,
         show=parsed.plot_show,
     )
 
-    return AppConfig(audio=audio_config, plot=plot_config)
+    return AppConfig(
+        audio=audio_config,
+        plot=plot_config,
+        processing=processing_config,
+    )
